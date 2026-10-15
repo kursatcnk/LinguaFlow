@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LinguaFlow.Application/LinguaFlow.Application.csproj" />
+    <Project Path="src/LinguaFlow.Core/LinguaFlow.Core.csproj" />
+    <Project Path="src/LinguaFlow.Desktop/LinguaFlow.Desktop.csproj" />
+    <Project Path="src/LinguaFlow.Infrastructure/LinguaFlow.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LinguaFlow.IntegrationTests/LinguaFlow.IntegrationTests.csproj" />
+    <Project Path="tests/LinguaFlow.UnitTests/LinguaFlow.UnitTests.csproj" />
+  </Folder>
+</Solution>
