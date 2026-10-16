@@ -91,3 +91,7 @@ dotnet test LinguaFlow.slnx -c Release --no-restore
 - [NAudio](https://github.com/naudio/NAudio) — MIT
 
 Bu bağımlılıkların model/binary dosyaları Git deposuna eklenmez; kullanıcı isteğiyle D: sürücüsüne indirilir.
+
+## Lisans
+
+LinguaFlow [MIT lisansı](LICENSE) ile dağıtılır. Yukarıdaki bağımlılıklar ve modeller kendi lisanslarına tabidir.
