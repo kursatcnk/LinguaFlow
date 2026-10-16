@@ -1,0 +1,69 @@
+<Window x:Class="LinguaFlow.Desktop.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="LinguaFlow Overlay"
+        Height="172" MinHeight="112" MinWidth="440"
+        Width="{Binding Width, Mode=TwoWay}"
+        Left="{Binding Left, Mode=TwoWay}"
+        Top="{Binding Top, Mode=TwoWay}"
+        Opacity="{Binding Opacity}"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ResizeMode="CanResizeWithGrip"
+        UseLayoutRounding="True"
+        MouseLeftButtonDown="OnMouseLeftButtonDown">
+    <Grid Margin="10">
+        <Border Background="#F20E1217" BorderBrush="#6639434D" BorderThickness="1" CornerRadius="10">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="24" ShadowDepth="8" Opacity="0.45" Color="#FF000000"/>
+            </Border.Effect>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="4"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Border Background="#FFF2C14E" CornerRadius="10,10,0,0"/>
+                <Grid Grid.Row="1" Margin="19,12,19,16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="6" Height="6" Fill="#FFF2C14E" Margin="0,0,8,0"/>
+                            <TextBlock Text="LINGUAFLOW" Foreground="#FFD9DEE2" FontFamily="Segoe UI"
+                                       FontSize="9" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Text="  EN → TR" Foreground="#FF7D8791" FontSize="9" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="⠿" Foreground="#FF626C76" FontSize="13" ToolTip="Taşımak için sürükle"/>
+                    </Grid>
+
+                    <Border Grid.Row="1" Background="#332A2110" BorderBrush="#665B491C" BorderThickness="1"
+                            CornerRadius="4" Padding="7,3" HorizontalAlignment="Left" Margin="0,7,0,0">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsDemo}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Text="DEMO · GERÇEK ÇEVİRİ DEĞİL" Foreground="#FFFFD978"
+                                   FontSize="8" FontWeight="Bold"/>
+                    </Border>
+
+                    <StackPanel Grid.Row="2" VerticalAlignment="Center" Margin="0,7,0,0">
+                        <TextBlock Text="{Binding OriginalText}" Foreground="#FF8D97A1" FontSize="11"
+                                   TextWrapping="Wrap" Margin="0,0,0,5"/>
+                        <TextBlock Text="{Binding TranslatedText}" Foreground="#FFF5F3ED"
+                                   FontSize="{Binding FontSize}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
