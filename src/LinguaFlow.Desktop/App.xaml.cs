@@ -14,35 +14,50 @@ public partial class App : System.Windows.Application
 
     protected override async void OnStartup(StartupEventArgs e)
     {
+        // Host starts asynchronously. Keep WPF alive until the first window exists;
+        // otherwise OnLastWindowClose can terminate the process during the first await.
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
         base.OnStartup(e);
-        _host = Host.CreateDefaultBuilder()
-            .ConfigureLogging(logging =>
-            {
-                logging.ClearProviders();
-                logging.AddDebug();
-            })
-            .ConfigureServices(services =>
-            {
-                services.AddSingleton<IAudioCaptureService, WindowsWasapiCaptureService>();
-                services.AddSingleton<IAudioProcessingService, AudioProcessingService>();
-                services.AddSingleton<ITranscriptProcessor, TranscriptProcessor>();
-                services.AddSingleton<ISettingsService, JsonSettingsService>();
-                services.AddSingleton<ILocalModelManager, LocalModelManager>();
-                services.AddSingleton<IRealtimeTranslationProvider, LocalWhisperTranslationProvider>();
-                services.AddSingleton<IRealtimeTranslationProvider, AzureSpeechTranslationProvider>();
-                services.AddSingleton<IRealtimeTranslationProvider, MockTranslationProvider>();
-                services.AddSingleton<ITranslationSessionService, TranslationSessionService>();
-                services.AddSingleton<OverlayViewModel>();
-                services.AddSingleton<MainViewModel>();
-                services.AddSingleton<OverlayWindow>();
-                services.AddSingleton<MainWindow>();
-            })
-            .Build();
+        try
+        {
+            _host = Host.CreateDefaultBuilder()
+                .ConfigureLogging(logging =>
+                {
+                    logging.ClearProviders();
+                    logging.AddDebug();
+                })
+                .ConfigureServices(services =>
+                {
+                    services.AddSingleton<IAudioCaptureService, WindowsWasapiCaptureService>();
+                    services.AddSingleton<IAudioProcessingService, AudioProcessingService>();
+                    services.AddSingleton<ITranscriptProcessor, TranscriptProcessor>();
+                    services.AddSingleton<ISettingsService, JsonSettingsService>();
+                    services.AddSingleton<ILocalModelManager, LocalModelManager>();
+                    services.AddSingleton<BergamotModelStore>();
+                    services.AddSingleton<ITextTranslator, GoogleFreeTranslator>();
+                    services.AddSingleton<ITextTranslator, BergamotOfflineTranslator>();
+                    services.AddSingleton<IRealtimeTranslationProvider, LocalWhisperTranslationProvider>();
+                    services.AddSingleton<IRealtimeTranslationProvider, AzureSpeechTranslationProvider>();
+                    services.AddSingleton<IRealtimeTranslationProvider, MockTranslationProvider>();
+                    services.AddSingleton<ITranslationSessionService, TranslationSessionService>();
+                    services.AddSingleton<OverlayViewModel>();
+                    services.AddSingleton<MainViewModel>();
+                    services.AddSingleton<OverlayWindow>();
+                    services.AddSingleton<MainWindow>();
+                })
+                .Build();
 
-        await _host.StartAsync().ConfigureAwait(true);
-        var mainWindow = _host.Services.GetRequiredService<MainWindow>();
-        MainWindow = mainWindow;
-        mainWindow.Show();
+            await _host.StartAsync().ConfigureAwait(true);
+            var mainWindow = _host.Services.GetRequiredService<MainWindow>();
+            MainWindow = mainWindow;
+            mainWindow.Show();
+            ShutdownMode = ShutdownMode.OnMainWindowClose;
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(exception.Message, "LinguaFlow başlatılamadı", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(-1);
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)

@@ -3,323 +3,257 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="LinguaFlow"
-        Width="1240" Height="800" MinWidth="1040" MinHeight="700"
+        Width="1040" Height="700" MinWidth="760" MinHeight="460"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None" ResizeMode="CanResize"
         Background="{StaticResource AppBackgroundBrush}"
         Foreground="{StaticResource TextBrush}"
+        FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13"
         UseLayoutRounding="True">
     <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" CornerRadius="10" GlassFrameThickness="0"/>
+        <shell:WindowChrome CaptionHeight="32" ResizeBorderThickness="6" CornerRadius="0" GlassFrameThickness="0"
+                            UseAeroCaptionButtons="False"/>
     </shell:WindowChrome.WindowChrome>
 
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
-    </Window.Resources>
+    <Window.InputBindings>
+        <KeyBinding Key="Enter" Modifiers="Control" Command="{Binding ToggleRunCommand}"/>
+    </Window.InputBindings>
 
-    <Border BorderBrush="#303842" BorderThickness="1" Background="{StaticResource AppBackgroundBrush}">
+    <Border x:Name="RootBorder" BorderBrush="#333333" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="44"/>
-                <RowDefinition Height="*"/>
                 <RowDefinition Height="32"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="28"/>
             </Grid.RowDefinitions>
 
-            <!-- Custom title bar -->
-            <Border Grid.Row="0" Background="#0D1116" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1"
-                    MouseLeftButtonDown="OnTitleBarMouseLeftButtonDown">
+            <!-- Başlık -->
+            <Grid>
+                <TextBlock Text="LinguaFlow" FontSize="12" Foreground="{StaticResource MutedBrush}"
+                           VerticalAlignment="Center" Margin="14,0,0,0"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button Content="&#xE921;" Click="OnMinimizeClick" Style="{StaticResource WindowButton}"/>
+                    <Button x:Name="MaximizeButton" Content="&#xE922;" Click="OnMaximizeClick" Style="{StaticResource WindowButton}"/>
+                    <Button Content="&#xE8BB;" Click="OnCloseClick" Style="{StaticResource CloseWindowButton}"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Araç çubuğu -->
+            <Border Grid.Row="1" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="14,6,14,12">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="15,0,0,0">
-                        <Border Width="24" Height="24" CornerRadius="6" Background="{StaticResource AccentBrush}">
-                            <TextBlock Text="L" Foreground="#15130D" FontWeight="Bold" FontSize="13"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <TextBlock Text="LinguaFlow" FontSize="12" FontWeight="SemiBold" Margin="9,0,0,0" VerticalAlignment="Center"/>
-                        <Border Width="1" Height="13" Background="{StaticResource LineBrush}" Margin="12,0"/>
-                        <TextBlock Text="Live Translation Desk" Foreground="{StaticResource MutedBrush}" FontSize="11" VerticalAlignment="Center"/>
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" shell:WindowChrome.IsHitTestVisibleInChrome="True">
-                        <Button Content="—" Click="OnMinimizeClick" Style="{StaticResource WindowButton}"/>
-                        <Button Content="□" Click="OnMaximizeClick" Style="{StaticResource WindowButton}"/>
-                        <Button Content="×" Click="OnCloseClick" Style="{StaticResource WindowButton}" FontSize="18"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <Grid Grid.Row="1">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="92"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-
-                <!-- Page header -->
-                <Grid Margin="28,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="Canlı çeviri" FontSize="25" FontWeight="SemiBold"/>
-                        <TextBlock Text="Bilgisayarındaki İngilizce sesi, oynatıldığı anda Türkçeye çevir."
-                                   Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,5,0,0"/>
-                    </StackPanel>
-                    <Border Grid.Column="1" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
-                            BorderThickness="1" CornerRadius="18" Padding="13,7" VerticalAlignment="Center">
+
+                    <Button Command="{Binding ToggleRunCommand}" Style="{StaticResource RunButton}"
+                            AutomationProperties.Name="{Binding RunButtonText}" ToolTip="Ctrl+Enter">
                         <StackPanel Orientation="Horizontal">
-                            <Ellipse Width="7" Height="7" Margin="0,0,8,0">
-                                <Ellipse.Style>
-                                    <Style TargetType="Ellipse">
-                                        <Setter Property="Fill" Value="#59616A"/>
+                            <TextBlock FontSize="11" Margin="0,0,8,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Icon}">
+                                        <Setter Property="Text" Value="&#xE768;"/>
+                                        <Setter Property="Foreground" Value="#151515"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsRunning}" Value="True">
-                                                <Setter Property="Fill" Value="{StaticResource SuccessBrush}"/>
+                                                <Setter Property="Text" Value="&#xE71A;"/>
+                                                <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
-                                </Ellipse.Style>
-                            </Ellipse>
-                            <TextBlock Text="{Binding StatusText}" FontSize="11" FontWeight="SemiBold"/>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="{Binding RunButtonText}" VerticalAlignment="Center"
+                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                         </StackPanel>
-                    </Border>
+                    </Button>
+
+                    <ComboBox Grid.Column="1" Width="250" Margin="12,0,0,0" ToolTip="Dinlenecek ses çıkışı"
+                              ItemsSource="{Binding AudioDevices}" SelectedItem="{Binding SelectedAudioDevice}"
+                              IsEnabled="{Binding CanEditSettings}"/>
+
+                    <ComboBox Grid.Column="2" Width="150" Margin="8,0,0,0" ToolTip="Konuşulan dil"
+                              ItemsSource="{Binding SourceLanguages}" SelectedItem="{Binding SelectedSourceLanguage}"
+                              IsEnabled="{Binding CanEditSettings}"/>
+
+                    <StackPanel Grid.Column="3" Orientation="Horizontal">
+                        <TextBlock Text="&#xE72A;" Style="{StaticResource Icon}" FontSize="11" Foreground="{StaticResource FaintBrush}" Margin="8,0"/>
+                        <ComboBox Width="150" ToolTip="Çeviri dili"
+                                  ItemsSource="{Binding TargetLanguages}" SelectedItem="{Binding SelectedTargetLanguage}"
+                                  IsEnabled="{Binding CanEditSettings}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="5" Orientation="Horizontal">
+                        <Button Style="{StaticResource IconButton}" Command="{Binding ToggleOverlayCommand}" ToolTip="Altyazı şeridi">
+                            <TextBlock Text="&#xE7F0;">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Icon}">
+                                        <Setter Property="Foreground" Value="{StaticResource FaintBrush}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsOverlayVisible}" Value="True">
+                                                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Button>
+                        <Button Style="{StaticResource IconButton}" Command="{Binding CopyTranscriptCommand}" ToolTip="Dökümü kopyala">
+                            <TextBlock Text="&#xE8C8;" Style="{StaticResource Icon}"/>
+                        </Button>
+                        <Button Style="{StaticResource IconButton}" Command="{Binding ClearHistoryCommand}" ToolTip="Temizle">
+                            <TextBlock Text="&#xE74D;" Style="{StaticResource Icon}"/>
+                        </Button>
+                    </StackPanel>
+
+                    <Button Grid.Column="6" Command="{Binding ToggleSettingsCommand}" ToolTip="Ayarlar" Margin="4,0,0,0">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSettingsOpen}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource ControlBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <TextBlock Text="&#xE713;" Style="{StaticResource Icon}"/>
+                    </Button>
                 </Grid>
+            </Border>
 
-                <!-- Workspace -->
-                <Grid Grid.Row="1" Margin="28,0,28,24">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="338"/>
-                        <ColumnDefinition Width="18"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                    <!-- Session setup -->
-                    <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
-                            BorderThickness="1" CornerRadius="12">
-                        <Grid Margin="20">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+                <!-- Döküm -->
+                <ScrollViewer x:Name="TranscriptScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel MaxWidth="860" Margin="32,20,32,28">
+                        <ItemsControl ItemsSource="{Binding History}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,0,0,18">
+                                        <TextBlock Text="{Binding Translation}" FontSize="19" TextWrapping="Wrap" LineHeight="27"
+                                                   FontFamily="Segoe UI Variable Display, Segoe UI"/>
+                                        <TextBlock FontSize="12.5" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,3,0,0">
+                                            <Run Text="{Binding Time, Mode=OneWay}" Foreground="{StaticResource FaintBrush}"/>
+                                            <Run Text="  "/>
+                                            <Run Text="{Binding OriginalLine, Mode=OneWay}"/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
 
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="OTURUM AYARLARI" Style="{StaticResource EyebrowText}"/>
-                                    <TextBlock Text="Kaynak ve motor" FontSize="18" FontWeight="SemiBold" Margin="0,5,0,0"/>
-                                </StackPanel>
-                                <Border Grid.Column="1" Background="#1A241F" BorderBrush="#274535" BorderThickness="1"
-                                        CornerRadius="6" Padding="8,5" VerticalAlignment="Center">
-                                    <TextBlock Text="GİZLİ" Foreground="{StaticResource SuccessBrush}" FontSize="9" FontWeight="Bold"/>
-                                </Border>
-                            </Grid>
+                        <Border BorderBrush="{StaticResource LiveBrush}" BorderThickness="2,0,0,0" Padding="12,0,0,0" Margin="-14,0,0,18"
+                                Visibility="{Binding HasPartial, Converter={StaticResource BoolToVisibility}}">
+                            <StackPanel>
+                                <TextBlock Text="{Binding PartialTranslation}" FontSize="19" TextWrapping="Wrap" LineHeight="27"
+                                           FontFamily="Segoe UI Variable Display, Segoe UI" Foreground="#C9D9F2"/>
+                                <TextBlock Text="{Binding PartialOriginal}" FontSize="12.5" Foreground="{StaticResource FaintBrush}"
+                                           TextWrapping="Wrap" Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
 
-                            <StackPanel Grid.Row="1" Margin="0,20,0,16">
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <TextBlock Text="Ses çıkışı" Style="{StaticResource FieldLabel}"/>
-                                    <Button Grid.Column="1" Content="Yenile" Command="{Binding RefreshDevicesCommand}"
-                                            Style="{StaticResource QuietButton}" Padding="8,3" Margin="0,0,0,4"/>
-                                </Grid>
-                                <ComboBox ItemsSource="{Binding AudioDevices}" SelectedItem="{Binding SelectedAudioDevice}"
-                                          DisplayMemberPath="Name" Margin="0,0,0,16"/>
+                <TextBlock VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource FaintBrush}"
+                           FontSize="13" IsHitTestVisible="False">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Setter Property="Text" Value="Başlat'a basın ve bir video ya da toplantı açın."/>
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding IsTranscriptEmpty}" Value="True"/>
+                                        <Condition Binding="{Binding HasPartial}" Value="False"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </MultiDataTrigger>
+                                <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                    <Setter Property="Text" Value="Konuşma bekleniyor…"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
 
-                                <TextBlock Text="Çeviri sağlayıcısı" Style="{StaticResource FieldLabel}"/>
-                                <ComboBox ItemsSource="{Binding Providers}" SelectedItem="{Binding SelectedProvider}"
-                                          DisplayMemberPath="Name" Margin="0,0,0,16"/>
+                <!-- Ayarlar paneli -->
+                <Border Grid.Column="1" Width="280" Background="{StaticResource PaneBrush}"
+                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1,0,0,0"
+                        Visibility="{Binding IsSettingsOpen, Converter={StaticResource BoolToVisibility}}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="18,16,18,18">
+                            <TextBlock Text="Ayarlar" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,16"/>
 
-                                <TextBlock Text="Çalışma modu" Style="{StaticResource FieldLabel}"/>
-                                <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}" Margin="0,0,0,18"/>
+                            <TextBlock Text="Motor" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox ItemsSource="{Binding Providers}" SelectedItem="{Binding SelectedProvider}"
+                                      IsEnabled="{Binding CanEditSettings}" Margin="0,0,0,14"/>
 
-                                <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0" Margin="0,0,0,17"/>
+                            <StackPanel Visibility="{Binding IsLocalProvider, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="Tanıma modeli" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox ItemsSource="{Binding WhisperModels}" SelectedItem="{Binding SelectedWhisperModel}"
+                                          IsEnabled="{Binding CanEditSettings}"/>
+                                <TextBlock Text="{Binding LocalModelStatus}" FontSize="11.5" Foreground="{StaticResource FaintBrush}"
+                                           TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                <ProgressBar Value="{Binding DownloadProgress}" Maximum="100" Margin="0,8,0,0"
+                                             Visibility="{Binding IsDownloadingModels, Converter={StaticResource BoolToVisibility}}"/>
+                                <Button Content="Modelleri indir" Command="{Binding DownloadModelsCommand}" Style="{StaticResource LinkButton}"
+                                        Margin="0,6,0,0"
+                                        Visibility="{Binding ModelsReady, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}"/>
 
-                                <StackPanel Visibility="{Binding IsLocalProvider, Converter={StaticResource BoolToVisibility}}">
-                                    <Grid Margin="0,0,0,9">
-                                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                        <TextBlock Text="Yerel yapay zekâ" Style="{StaticResource FieldLabel}" Margin="0"/>
-                                        <TextBlock Grid.Column="1" Text="CİHAZDA" Foreground="{StaticResource SuccessBrush}"
-                                                   FontSize="9" FontWeight="Bold" VerticalAlignment="Center"/>
-                                    </Grid>
-                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}"
-                                            BorderThickness="1" CornerRadius="8" Padding="11">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                            <Border Width="32" Height="32" CornerRadius="8" Background="#252B25">
-                                                <TextBlock Text="✓" Foreground="{StaticResource SuccessBrush}" FontSize="15"
-                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                            <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding LocalModelStatus}" FontSize="10" TextWrapping="Wrap"
-                                                           Foreground="#D5DADE"/>
-                                                <TextBlock Text="{Binding ModelDirectory}" FontFamily="Consolas" FontSize="9"
-                                                           Foreground="{StaticResource MutedBrush}" Margin="0,3,0,0"
-                                                           TextTrimming="CharacterEllipsis"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-                                    <Button Content="Model paketini indir" Command="{Binding DownloadModelsCommand}"
-                                            Style="{StaticResource QuietButton}" HorizontalAlignment="Left" Margin="0,9,0,0"/>
-                                </StackPanel>
-
-                                <StackPanel Visibility="{Binding IsAzureProvider, Converter={StaticResource BoolToVisibility}}">
-                                    <TextBlock Text="Azure bölgesi" Style="{StaticResource FieldLabel}"/>
-                                    <TextBox Text="{Binding AzureRegion, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,11"/>
-                                    <TextBlock Text="Speech anahtarı" Style="{StaticResource FieldLabel}"/>
-                                    <PasswordBox x:Name="AzureKeyBox" PasswordChanged="OnAzureKeyChanged"/>
-                                    <TextBlock Text="Bu modda ses Azure hizmetine gönderilir."
-                                               Foreground="#E6A58E" FontSize="10" Margin="0,8,0,0"/>
-                                </StackPanel>
-
-                                <Border Visibility="{Binding IsDemoProvider, Converter={StaticResource BoolToVisibility}}"
-                                        Background="#262215" BorderBrush="#544822" BorderThickness="1"
-                                        CornerRadius="8" Padding="11">
-                                    <TextBlock Text="Demo modu gerçek çeviri yapmaz; yalnızca arayüzü sınar."
-                                               Foreground="#E7CB79" FontSize="10" TextWrapping="Wrap"/>
-                                </Border>
+                                <TextBlock Text="Çeviri" Style="{StaticResource FieldLabel}" Margin="0,14,0,6"/>
+                                <ComboBox ItemsSource="{Binding TranslationEngineOptions}" SelectedItem="{Binding SelectedTranslationEngine}"
+                                          IsEnabled="{Binding CanEditSettings}" Margin="0,0,0,14"/>
                             </StackPanel>
 
-                            <Grid Grid.Row="2">
-                                <Grid.RowDefinitions><RowDefinition/><RowDefinition Height="10"/><RowDefinition/></Grid.RowDefinitions>
-                                <Button Content="Çeviriyi başlat" Command="{Binding StartCommand}" Style="{StaticResource PrimaryButton}"/>
-                                <Grid Grid.Row="2">
-                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                    <Button Content="Durdur" Command="{Binding StopCommand}" Margin="0,0,5,0"/>
-                                    <Button Grid.Column="1" Content="Overlay" Command="{Binding ToggleOverlayCommand}" Margin="5,0,0,0"/>
-                                </Grid>
-                            </Grid>
-                        </Grid>
-                    </Border>
+                            <TextBlock Text="Gecikme" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}"
+                                      IsEnabled="{Binding CanEditSettings}" Margin="0,0,0,14"/>
 
-                    <!-- Translation canvas -->
-                    <Grid Grid.Column="2">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="1.55*"/>
-                            <RowDefinition Height="18"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
+                            <StackPanel Visibility="{Binding IsAzureProvider, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="Azure bölgesi" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding AzureRegion, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12"
+                                         IsEnabled="{Binding CanEditSettings}"/>
+                                <TextBlock Text="Speech anahtarı" Style="{StaticResource FieldLabel}"/>
+                                <PasswordBox x:Name="AzureKeyBox" PasswordChanged="OnAzureKeyChanged" IsEnabled="{Binding CanEditSettings}"/>
+                            </StackPanel>
 
-                        <Border Background="#0E1217" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="12">
-                            <Grid Margin="24,21">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-
-                                <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Ellipse Width="8" Height="8" Fill="{StaticResource AccentBrush}" Margin="0,0,9,0"/>
-                                        <TextBlock Text="CANLI ALTYAZI" Style="{StaticResource EyebrowText}"
-                                                   Foreground="#DDE1E4" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Border Background="{StaticResource SurfaceBrush}" CornerRadius="12" Padding="9,5">
-                                            <TextBlock Text="EN" FontSize="9" FontWeight="Bold"/>
-                                        </Border>
-                                        <TextBlock Text="→" Foreground="{StaticResource MutedBrush}" Margin="8,0" VerticalAlignment="Center"/>
-                                        <Border Background="{StaticResource AccentBrush}" CornerRadius="12" Padding="9,5">
-                                            <TextBlock Text="TR" Foreground="#17130A" FontSize="9" FontWeight="Bold"/>
-                                        </Border>
-                                    </StackPanel>
-                                </Grid>
-
-                                <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="6,20">
-                                    <TextBlock Text="{Binding CurrentOriginal}" Foreground="{StaticResource MutedBrush}"
-                                               FontSize="15" TextWrapping="Wrap" LineHeight="23"/>
-                                    <TextBlock Text="{Binding CurrentTranslation}" Foreground="{StaticResource TextBrush}"
-                                               FontSize="34" FontWeight="SemiBold" TextWrapping="Wrap"
-                                               LineHeight="44" Margin="0,14,0,0"/>
-                                </StackPanel>
-
-                                <Grid Grid.Row="2">
-                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Path Data="M 1 5 L 4 8 L 10 1" Stroke="{StaticResource SuccessBrush}" StrokeThickness="1.5"/>
-                                        <TextBlock Text="Ses kaydedilmez" Foreground="{StaticResource MutedBrush}"
-                                                   FontSize="10" Margin="8,0,0,0"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Height="22">
-                                        <Rectangle Width="3" Height="7" Fill="#2D3640" Margin="2,0" VerticalAlignment="Bottom"/>
-                                        <Rectangle Width="3" Height="14" Fill="#38434E" Margin="2,0" VerticalAlignment="Bottom"/>
-                                        <Rectangle Width="3" Height="9" Fill="#2D3640" Margin="2,0" VerticalAlignment="Bottom"/>
-                                        <Rectangle Width="3" Height="18" Fill="{StaticResource AccentBrush}" Margin="2,0" VerticalAlignment="Bottom"/>
-                                        <Rectangle Width="3" Height="11" Fill="#38434E" Margin="2,0" VerticalAlignment="Bottom"/>
-                                        <Rectangle Width="3" Height="5" Fill="#2D3640" Margin="2,0" VerticalAlignment="Bottom"/>
-                                        <Rectangle Width="3" Height="13" Fill="#38434E" Margin="2,0" VerticalAlignment="Bottom"/>
-                                        <Rectangle Width="3" Height="8" Fill="#2D3640" Margin="2,0" VerticalAlignment="Bottom"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Grid>
-                        </Border>
-
-                        <Border Grid.Row="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
-                                BorderThickness="1" CornerRadius="12">
-                            <Grid>
-                                <Grid.RowDefinitions><RowDefinition Height="56"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                                <Grid Margin="19,0">
-                                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="Çeviri geçmişi" FontSize="14" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Tamamlanan cümleler" Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                    <Button Grid.Column="1" Content="Temizle" Command="{Binding ClearHistoryCommand}"
-                                            Style="{StaticResource QuietButton}" VerticalAlignment="Center"/>
-                                </Grid>
-
-                                <ListBox Grid.Row="1" ItemsSource="{Binding History}" Background="Transparent"
-                                         BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                    <ListBox.ItemContainerStyle>
-                                        <Style TargetType="ListBoxItem">
-                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                            <Setter Property="Padding" Value="0"/>
-                                            <Setter Property="Background" Value="Transparent"/>
-                                            <Setter Property="BorderThickness" Value="0"/>
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#171D23"/>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </ListBox.ItemContainerStyle>
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid Margin="18,12">
-                                                <Grid.ColumnDefinitions><ColumnDefinition Width="3"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                                <Border Background="{StaticResource AccentBrush}" CornerRadius="2"/>
-                                                <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                                                    <TextBlock Text="{Binding TranslatedText}" TextWrapping="Wrap"
-                                                               FontSize="13" FontWeight="SemiBold"/>
-                                                    <TextBlock Text="{Binding OriginalText}" TextWrapping="Wrap"
-                                                               Foreground="{StaticResource MutedBrush}" FontSize="10" Margin="0,4,0,0"/>
-                                                </StackPanel>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
-                            </Grid>
-                        </Border>
-                    </Grid>
-                </Grid>
+                            <TextBlock Text="Demo modu sahte metin üretir." FontSize="11.5" Foreground="{StaticResource FaintBrush}"
+                                       Visibility="{Binding IsDemoProvider, Converter={StaticResource BoolToVisibility}}"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
             </Grid>
 
-            <!-- Status strip -->
-            <Border Grid.Row="2" Background="#0D1116" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0">
-                <Grid Margin="16,0">
+            <!-- Durum çubuğu -->
+            <Border Grid.Row="3" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0">
+                <Grid Margin="14,0">
                     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <TextBlock Text="{Binding DiagnosticsText}" Foreground="#707A85" FontFamily="Consolas"
-                               FontSize="9" VerticalAlignment="Center"/>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding ProviderStatus}" Foreground="#707A85" FontSize="9"/>
-                        <Border Width="1" Height="10" Background="{StaticResource LineBrush}" Margin="10,0"/>
-                        <TextBlock Text="LOCAL-FIRST" Foreground="{StaticResource AccentBrush}" FontSize="9" FontWeight="Bold"/>
-                    </StackPanel>
+                    <TextBlock Text="{Binding StatusText}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasError}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource DangerBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Grid.Column="1" FontSize="12" Foreground="{StaticResource FaintBrush}" VerticalAlignment="Center">
+                        <Run Text="{Binding DiagnosticsText, Mode=OneWay}" Foreground="{StaticResource DangerBrush}"/>
+                        <Run Text="{Binding ProviderStatus, Mode=OneWay}"/>
+                    </TextBlock>
                 </Grid>
             </Border>
         </Grid>

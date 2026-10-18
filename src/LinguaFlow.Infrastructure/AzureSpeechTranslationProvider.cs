@@ -52,15 +52,16 @@ public sealed partial class AzureSpeechTranslationProvider : IRealtimeTranslatio
 
             StateChanged?.Invoke(this, new ProviderStateChange(ProviderConnectionState.Connecting, "Azure Speech bağlantısı kuruluyor…"));
             var speechConfig = SpeechTranslationConfig.FromSubscription(key, region);
-            speechConfig.SpeechRecognitionLanguage = options.SourceLanguage;
-            speechConfig.AddTargetLanguage(options.TargetLanguage);
+            speechConfig.SpeechRecognitionLanguage = ToAzureLocale(options.SourceLanguage);
+            var targetLanguage = ToAzureTarget(options.TargetLanguage);
+            speechConfig.AddTargetLanguage(targetLanguage);
 
             var streamFormat = AudioStreamFormat.GetWaveFormatPCM(16_000, 16, 1);
             _pushStream = AudioInputStream.CreatePushStream(streamFormat);
             _audioConfig = AudioConfig.FromStreamInput(_pushStream);
             _recognizer = new TranslationRecognizer(speechConfig, _audioConfig);
             _sessionId = Guid.NewGuid().ToString("N");
-            _targetLanguage = options.TargetLanguage;
+            _targetLanguage = targetLanguage;
 
             _recognizer.Recognizing += OnRecognizing;
             _recognizer.Recognized += OnRecognized;
@@ -202,6 +203,35 @@ public sealed partial class AzureSpeechTranslationProvider : IRealtimeTranslatio
         _pushStream?.Dispose();
         _pushStream = null;
     }
+
+    // Azure sürekli tanıma için tek bir konuşma yereli ister; "otomatik" seçiliyse İngilizce varsayılır.
+    private static string ToAzureLocale(string language) => LanguageCatalog.BaseCode(language) switch
+    {
+        "" or LanguageCatalog.Auto or "en" => "en-US",
+        "tr" => "tr-TR",
+        "de" => "de-DE",
+        "fr" => "fr-FR",
+        "es" => "es-ES",
+        "it" => "it-IT",
+        "pt" => "pt-BR",
+        "ru" => "ru-RU",
+        "ar" => "ar-SA",
+        "ja" => "ja-JP",
+        "ko" => "ko-KR",
+        "zh" => "zh-CN",
+        "nl" => "nl-NL",
+        "pl" => "pl-PL",
+        "uk" => "uk-UA",
+        "hi" => "hi-IN",
+        var other => language.Contains('-', StringComparison.Ordinal) ? language : $"{other}-{other.ToUpperInvariant()}"
+    };
+
+    private static string ToAzureTarget(string language) => language.ToLowerInvariant() switch
+    {
+        "zh-cn" or "zh" => "zh-Hans",
+        "zh-tw" => "zh-Hant",
+        _ => LanguageCatalog.BaseCode(language)
+    };
 
     private static string? FirstNonEmpty(string? first, string? second) =>
         !string.IsNullOrWhiteSpace(first) ? first : second;

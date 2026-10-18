@@ -1,61 +1,68 @@
 # LinguaFlow yapılandırması
 
-## Yerel ücretsiz mod
+## Yerel Whisper modu (varsayılan)
 
-Yerel mod varsayılandır ve API anahtarı istemez. İlk çalıştırmada:
+API anahtarı gerektirmez. İlk çalıştırmada:
 
-1. Provider olarak **Yerel Ücretsiz — cihazda** seçin.
-2. **Modelleri İndir** düğmesine basın.
-3. Yaklaşık 170 MB modelin indirilip doğrulanmasını bekleyin.
-4. Playback cihazını seçip **Başlat** düğmesine basın.
+1. Motor olarak **Yerel Whisper (ücretsiz)** seçin.
+2. **Modelleri indir** düğmesine basın. İndirilenler:
+   - Whisper modeli: `ggml-large-v3-turbo-q5_0.bin` (~575 MB) ya da `ggml-small-q5_1.bin` (~190 MB)
+   - Silero VAD: `ggml-silero-v5.1.2.bin` (~1 MB)
+   - Çeviri dilinize göre cihazdaki çeviri paketleri (ör. `en-tr`, ~20 MB)
+3. Ses çıkışını seçip **Başlat**'a basın.
 
-Varsayılan model dizini `D:\LinguaFlowModels` konumudur. Başka bir D:/E: klasörü için uygulamayı açmadan önce:
+Varsayılan model dizini `D:\LinguaFlowModels`. Başka bir D:/E: klasörü için uygulamayı açmadan önce:
 
 ```powershell
 $env:LINGUAFLOW_MODEL_DIR = "D:\AI\LinguaFlow"
 ```
 
-Model yolu C: olursa uygulama yazmayı reddeder. İndirme sırasında bağlantı koparsa `.partial` dosyası korunur ve sonraki deneme kaldığı yerden sürer. Tamamlanan dosyalar SHA-256 ile doğrulanır.
+Model yolu C: olursa uygulama yazmayı reddeder. Yarıda kalan indirmeler `.partial` dosyasından devam eder; Whisper ve VAD modelleri Hugging Face'teki resmi SHA-256 ile, çeviri modelleri Mozilla kayıt defterindeki SHA-256 ile doğrulanır.
 
-Yerel motorlar:
+### GPU
 
-- İngilizce konuşma tanıma: Whisper `base.en`
-- İngilizce→Türkçe çeviri: Mozilla Bergamot resmi `en-tr` modeli
+Whisper önce Vulkan (NVIDIA/AMD/Intel, ekstra kurulum yok), olmazsa CPU çalışma zamanıyla yüklenir. Hangisinin kullanıldığı durum çubuğunda görünür (ör. `GPU (Vulkan)`). İlk açılışta GPU çekirdeklerinin derlenmesi ~1–10 sn sürebilir; uygulama bunu açılışta arka planda yapar.
 
-## Azure modu (isteğe bağlı)
+### Çeviri motorları
+
+| Mod | Kesin cümle | Anlık parça | İnternet |
+|---|---|---|---|
+| Çevrimiçi + cihaz yedeği | Google ücretsiz uç → cihaz | Cihaz → (≥1,2 sn aralıkla) Google | Yalnızca metin |
+| Yalnızca cihazda | Mozilla Bergamot | Mozilla Bergamot | Paket indirme hariç yok |
+
+Cihazdaki çeviri `dil → en` ve `en → dil` modelleriyle çalışır; örneğin Almanca → Türkçe için `de-en` ve `en-tr` paketleri kullanılır. Paketler `D:\LinguaFlowModels\translation\<çift>\` altına iner. Kayıt defteri (`models.json`) haftada bir yenilenir.
+
+Çevrimiçi servis HTTP 429 döndürürse 3 dakika, başka bir hata olursa 15 saniye boyunca cihazdaki çeviri kullanılır.
+
+## Azure modu (isteğe bağlı, ücretli)
 
 1. Azure Portal'da bir Azure AI Speech kaynağı oluşturun.
 2. **Keys and Endpoint** bölümünden key ve region değerini alın.
-3. Değerleri yalnızca kendi makinenizde environment variable olarak ayarlayın veya uygulama arayüzüne girin.
+3. Değerleri environment variable olarak ayarlayın veya arayüze girin.
 
 ```powershell
 $env:LINGUAFLOW_AZURE_SPEECH_KEY = "kendi-anahtarınız"
 $env:LINGUAFLOW_AZURE_SPEECH_REGION = "kaynak-bölgeniz"
 ```
 
-Anahtar ayar dosyasına veya Git deposuna yazılmaz. Azure modunda ses buluta gönderilir; yerel modda gönderilmez.
-
-## Dil kodları
-
-- Kaynak: İngilizce (`en-US` / Whisper `en`)
-- Hedef: Türkçe (`tr`)
+Anahtar ayar dosyasına veya Git deposuna yazılmaz. Azure modunda ses buluta gönderilir. Azure sürekli tanımada tek bir konuşma dili ister; "Otomatik algıla" seçiliyse `en-US` kullanılır.
 
 ## Ayarlar ve veri
 
-`LINGUAFLOW_DATA_DIR` tanımlı değilse ayarlar EXE yanındaki `data\settings.json` dosyasına yazılır. Özel konum:
+`LINGUAFLOW_DATA_DIR` tanımlı değilse ayarlar EXE yanındaki `data\settings.json` dosyasına yazılır:
 
 ```powershell
 $env:LINGUAFLOW_DATA_DIR = "D:\LinguaFlowData"
 ```
 
-Azure anahtarı bu dosyaya kaydedilmez. Ham ses hiçbir modda diske yazılmaz.
+Kaydedilenler: ses cihazı, motor, konuşma/çeviri dili, model, gecikme modu, altyazı konumu/genişliği/yazı boyutu/saydamlığı. Ham ses hiçbir modda diske yazılmaz.
 
 ## Sorun giderme
 
-- **Modeller eksik:** Yerel provider'ı seçip **Modelleri İndir** düğmesine basın; `D:\LinguaFlowModels` altında boş alan ve yazma yetkisi olduğundan emin olun.
-- **Ses yok:** Doğru playback endpoint'ini seçin ve İngilizce sesin bu cihazdan çıktığını doğrulayın. WASAPI loopback, cihaz tamamen sessizken veri üretmeyebilir.
-- **Altyazı gecikiyor:** Yerel mod cümle sonundaki yaklaşık 650 ms sessizliği bekler. Çok uzun kesintisiz konuşmalar en fazla 12 saniyelik parçalara ayrılır.
-- **Konuşma algılanmıyor:** Kaynak ses seviyesini yükseltin; enerji eşiğinin altındaki ses/gürültü filtrelenir.
-- **401/403:** Azure key ve region aynı Speech kaynağına ait olmayabilir.
-- **Dropped frame:** Sistem ses işleme hattına yetişememiştir; hata diagnostikte görünür.
+- **Model yüklenemedi: Native Library not found:** Yayın klasöründe `runtimes\` alt klasörü EXE'nin yanında olmalıdır; yalnızca EXE'yi kopyalamayın.
+- **Hiç altyazı çıkmıyor:** Doğru ses çıkışının seçildiğinden ve sesin o cihazdan çaldığından emin olun (kulaklık/hoparlör). Durum çubuğu "Dinleniyor" göstermelidir.
+- **Çeviri yerine özgün metin görünüyor:** Çevrimiçi servis sınırlanmış ve gerekli cihaz paketi henüz inmemiş olabilir; birkaç saniye içinde paket iner ve çeviri döner.
+- **Gecikme yüksek / CPU görünüyor:** GPU sürücüsünü güncelleyin; GPU yoksa **Small** modelini seçin.
+- **Yanlış dil algılanıyor:** Konuşma dilini elle seçin.
+- **401/403 (Azure):** Key ve region aynı Speech kaynağına ait olmayabilir.
 - **Cihaz çıkarıldı:** Listeyi yenileyin, yeni cihazı seçin ve tekrar başlatın.

@@ -63,9 +63,25 @@ public interface ISettingsService
     Task SaveAsync(ApplicationSettings settings, CancellationToken cancellationToken = default);
 }
 
+public interface ITextTranslator
+{
+    string Id { get; }
+    bool CanTranslate(string sourceLanguage, string targetLanguage);
+    Task<string> TranslateAsync(string text, string sourceLanguage, string targetLanguage, CancellationToken cancellationToken);
+}
+
+/// <summary>Ağır modelleri oturum başlamadan önce belleğe/GPU'ya yükleyebilen sağlayıcılar.</summary>
+public interface IWarmupCapable
+{
+    bool IsWarm { get; }
+    Task WarmUpAsync(CancellationToken cancellationToken);
+}
+
 public interface ILocalModelManager
 {
     string ModelDirectory { get; set; }
+    IReadOnlyList<WhisperModelInfo> AvailableWhisperModels { get; }
+    WhisperModelInfo SelectedWhisperModel { get; set; }
     LocalModelStatus GetStatus();
     Task DownloadModelsAsync(
         IProgress<LocalModelDownloadProgress>? progress = null,

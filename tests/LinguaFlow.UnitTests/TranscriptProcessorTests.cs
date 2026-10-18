@@ -46,6 +46,43 @@ public sealed class TranscriptProcessorTests
         Assert.Equal("Two", processor.FinalSegments[0].OriginalText);
     }
 
+    [Fact]
+    public void DetectedLanguageIsPreserved()
+    {
+        var processor = new TranscriptProcessor();
+        processor.Process(Event("1", "Hello", "Merhaba", true) with { DetectedLanguage = "de" });
+
+        Assert.Equal("de", Assert.Single(processor.FinalSegments).DetectedLanguage);
+    }
+
+    [Fact]
+    public void FinalOfPreviousSentenceKeepsPartialOfNextSentence()
+    {
+        var processor = new TranscriptProcessor();
+        processor.Process(Event("s1", "Good evening", "İyi akşamlar", false));
+        processor.Process(Event("s2", "Tonight we", "Bu akşam", false));
+
+        processor.Process(Event("s1", "Good evening.", "İyi akşamlar.", true));
+
+        Assert.Equal("s2", processor.PartialSegment?.SegmentId);
+        Assert.Single(processor.FinalSegments);
+    }
+
+    [Fact]
+    public void EmptyPartialWithdrawsCurrentPartial()
+    {
+        var processor = new TranscriptProcessor();
+        var changes = 0;
+        processor.SegmentChanged += (_, _) => changes++;
+        processor.Process(Event("s1", "uh", "ıı", false));
+
+        processor.Process(Event("s1", string.Empty, string.Empty, false));
+        processor.Process(Event("other", string.Empty, string.Empty, false));
+
+        Assert.Null(processor.PartialSegment);
+        Assert.Equal(2, changes);
+    }
+
     private static TranslationEvent Event(string segment, string original, string translated, bool final) =>
         new("session", segment, original, translated, final, TimeSpan.Zero, TimeSpan.FromSeconds(1), DateTimeOffset.UtcNow);
 }

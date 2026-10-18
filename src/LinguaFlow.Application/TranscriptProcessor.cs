@@ -46,11 +46,6 @@ public sealed class TranscriptProcessor : ITranscriptProcessor
 
         var original = NormalizeWhitespace(translationEvent.OriginalText);
         var translated = NormalizeWhitespace(translationEvent.TranslatedText);
-        if (string.IsNullOrWhiteSpace(original) && string.IsNullOrWhiteSpace(translated))
-        {
-            return;
-        }
-
         var segment = new TranscriptSegment(
             translationEvent.SessionId,
             translationEvent.SegmentId,
@@ -59,7 +54,25 @@ public sealed class TranscriptProcessor : ITranscriptProcessor
             translationEvent.IsFinal,
             translationEvent.Offset,
             translationEvent.Duration,
-            translationEvent.ReceivedAt);
+            translationEvent.ReceivedAt,
+            translationEvent.DetectedLanguage);
+
+        if (string.IsNullOrWhiteSpace(original) && string.IsNullOrWhiteSpace(translated))
+        {
+            // Boş partial, sağlayıcının o segment için gösterdiği geçici metni geri çektiği anlamına gelir.
+            lock (_gate)
+            {
+                if (segment.IsFinal || _partial?.SegmentId != segment.SegmentId)
+                {
+                    return;
+                }
+
+                _partial = null;
+            }
+
+            SegmentChanged?.Invoke(this, segment);
+            return;
+        }
 
         lock (_gate)
         {
@@ -77,14 +90,19 @@ public sealed class TranscriptProcessor : ITranscriptProcessor
             }
             else
             {
+                // Akış sağlayıcıları sonraki cümlenin partial'ını önceki cümlenin final'ından
+                // önce gönderebilir; yalnızca aynı segmente ait partial temizlenir.
+                if (_partial?.SegmentId == segment.SegmentId)
+                {
+                    _partial = null;
+                }
+
                 var fingerprint = $"{segment.OriginalText}\u001f{segment.TranslatedText}";
                 if (string.Equals(_lastFinalFingerprint, fingerprint, StringComparison.Ordinal))
                 {
-                    _partial = null;
                     return;
                 }
 
-                _partial = null;
                 _lastFinalFingerprint = fingerprint;
                 _finalSegments.Add(segment);
                 if (_finalSegments.Count > _maximumSegments)
