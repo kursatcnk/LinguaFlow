@@ -213,6 +213,11 @@
                                 <TextBlock Text="Çeviri" Style="{StaticResource FieldLabel}" Margin="0,14,0,6"/>
                                 <ComboBox ItemsSource="{Binding TranslationEngineOptions}" SelectedItem="{Binding SelectedTranslationEngine}"
                                           IsEnabled="{Binding CanEditSettings}" Margin="0,0,0,14"/>
+
+                                <TextBlock Text="Çevrilecek ses" Style="{StaticResource FieldLabel}"/>
+                                <ComboBox ItemsSource="{Binding FocusOptions}" SelectedItem="{Binding SelectedFocusOption}"
+                                          IsEnabled="{Binding CanEditSettings}" Margin="0,0,0,14"
+                                          ToolTip="Ana konuşmacı: arka plandaki şarkıları, müziği ve kısık sesleri çevirmez"/>
                             </StackPanel>
 
                             <TextBlock Text="Gecikme" Style="{StaticResource FieldLabel}"/>

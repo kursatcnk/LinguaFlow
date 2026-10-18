@@ -10,7 +10,7 @@ namespace LinguaFlow.Infrastructure;
 /// Google Translate'in anahtarsız, ücretsiz web uç noktası. Tüm dil çiftlerini destekler ve
 /// tipik olarak 100–250 ms içinde yanıt verir. Metin (ses değil) Google'a gönderilir.
 /// </summary>
-public sealed class GoogleFreeTranslator : ITextTranslator, IDisposable
+public sealed class GoogleFreeTranslator : IContextualTextTranslator, IDisposable
 {
     private const string Endpoint = "https://translate.googleapis.com/translate_a/single";
     private readonly HttpClient _httpClient;
@@ -29,7 +29,47 @@ public sealed class GoogleFreeTranslator : ITextTranslator, IDisposable
 
     public bool CanTranslate(string sourceLanguage, string targetLanguage) => true;
 
+    public Task<string> TranslateAsync(
+        string text,
+        string sourceLanguage,
+        string targetLanguage,
+        CancellationToken cancellationToken) =>
+        RequestAsync(text, sourceLanguage, targetLanguage, cancellationToken);
+
+    /// <summary>
+    /// Bağlam ve cümle tek istekte, satır sonuyla ayrılarak gönderilir; servis satırları korur ve
+    /// yeni cümleyi bağlamın ışığında çevirir. Satır yapısı bozulursa cümle tek başına çevrilir.
+    /// </summary>
     public async Task<string> TranslateAsync(
+        string text,
+        string? context,
+        string sourceLanguage,
+        string targetLanguage,
+        CancellationToken cancellationToken)
+    {
+        var line = OneLine(text);
+        var contextLine = context is null ? string.Empty : OneLine(context);
+        if (line.Length == 0 || contextLine.Length == 0)
+        {
+            return await RequestAsync(line, sourceLanguage, targetLanguage, cancellationToken).ConfigureAwait(false);
+        }
+
+        var combined = await RequestAsync($"{contextLine}\n{line}", sourceLanguage, targetLanguage, cancellationToken).ConfigureAwait(false);
+        return ExtractLastLine(combined)
+            ?? await RequestAsync(line, sourceLanguage, targetLanguage, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>İki satırlık (bağlam + cümle) çeviriden cümlenin çevirisi; yapı bozuksa null.</summary>
+    internal static string? ExtractLastLine(string translated)
+    {
+        var lines = translated.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return lines.Length == 2 ? lines[1] : null;
+    }
+
+    private static string OneLine(string text) =>
+        string.Join(' ', text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+    private async Task<string> RequestAsync(
         string text,
         string sourceLanguage,
         string targetLanguage,

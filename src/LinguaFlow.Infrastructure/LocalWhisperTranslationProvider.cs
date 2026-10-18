@@ -24,6 +24,9 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
     private static readonly TimeSpan OnlineErrorBackoff = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan OnlineThrottleBackoff = TimeSpan.FromMinutes(3);
     private static readonly TimeSpan OnlinePartialInterval = TimeSpan.FromSeconds(1.2);
+    private static readonly TimeSpan FocusReportInterval = TimeSpan.FromSeconds(6);
+    private static readonly TimeSpan TranslationContextWindow = TimeSpan.FromSeconds(20);
+    private const int MaximumContextLength = 280;
 
     private readonly ILocalModelManager _modelManager;
     private readonly ITextTranslator _onlineTranslator;
@@ -34,6 +37,8 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
     private readonly object _audioGate = new();
     private readonly object _partialGate = new();
     private readonly List<float> _audio = new(SampleRate * 30);
+    private readonly SpeechBandFilter _bandFilter = new(SampleRate);
+    private readonly SpeechFocusFilter _focus = new();
 
     private WhisperFactory? _whisperFactory;
     private WhisperProcessor? _processor;
@@ -60,6 +65,10 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
     private string? _partialSegmentId;
     private string _partialOriginal = string.Empty;
     private string _partialTranslation = string.Empty;
+    private DateTimeOffset _lastFocusReport = DateTimeOffset.MinValue;
+    private string? _contextText;
+    private string? _contextLanguage;
+    private TimeSpan _contextEnd;
 
     public LocalWhisperTranslationProvider(
         ILocalModelManager modelManager,
@@ -136,6 +145,8 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
                 _audio.Clear();
                 _bufferStartSample = 0;
                 _totalSamples = 0;
+                _bandFilter.Reset();
+                _focus.Reset();
             }
 
             lock (_partialGate)
@@ -149,6 +160,9 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
             _segmentNumber = 0;
             _flushRequested = false;
             _onlineBlockedUntil = DateTimeOffset.MinValue;
+            _lastFocusReport = DateTimeOffset.MinValue;
+            _contextText = null;
+            _contextLanguage = null;
             _sessionCancellation = new CancellationTokenSource();
             _jobs = Channel.CreateUnbounded<TranslationJob>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
             _translationWorker = Task.Run(() => TranslateLoopAsync(_jobs.Reader, _sessionCancellation.Token), CancellationToken.None);
@@ -171,13 +185,16 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
         ArgumentNullException.ThrowIfNull(chunk);
         var pcm = chunk.Pcm16Mono;
         var count = pcm.Length / 2;
+        var samples = new float[count];
         lock (_audioGate)
         {
             for (var index = 0; index < count; index++)
             {
-                _audio.Add((short)(pcm[index * 2] | (pcm[(index * 2) + 1] << 8)) / 32768f);
+                samples[index] = _bandFilter.Process((short)(pcm[index * 2] | (pcm[(index * 2) + 1] << 8)) / 32768f);
             }
 
+            _audio.AddRange(samples);
+            _focus.Append(samples);
             _totalSamples += count;
             var maximum = (int)(MaximumBufferedAudio.TotalSeconds * SampleRate);
             if (_audio.Count > maximum)
@@ -307,7 +324,7 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
                     else if (flushing || total - lastDecodedTotal >= stepSamples)
                     {
                         var decodeWatch = Stopwatch.StartNew();
-                        (hypothesis, var detected) = await DecodeAsync(samples, speech, cancellationToken).ConfigureAwait(false);
+                        (hypothesis, var detected) = await DecodeAsync(samples, speech, bufferStart, cancellationToken).ConfigureAwait(false);
                         lastDecodeTime = decodeWatch.Elapsed;
                         lastDecodedTotal = total;
                         decodedUntil = bufferStart + samples.Length;
@@ -336,6 +353,13 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
                     var offset = SamplesToTime(bufferStart) + decision.Committed[0].Start;
                     var duration = decision.Committed[^1].End - decision.Committed[0].Start;
                     jobs.TryWrite(new TranslationJob(segmentId, text, language, true, 0, offset, duration, lastDecodeTime));
+                    if (_options.FocusMainSpeaker)
+                    {
+                        _focus.ObserveMainSpeaker(
+                            bufferStart + TimeToSamples(decision.Committed[0].Start),
+                            bufferStart + TimeToSamples(decision.Committed[^1].End));
+                    }
+
                     segmentId = NextSegmentId();
                     lastPartial = string.Empty;
                 }
@@ -402,11 +426,13 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
     private async Task<(IReadOnlyList<RecognizedSegment> Segments, string? Language)> DecodeAsync(
         float[] samples,
         IReadOnlyList<SpeechSpan> speech,
+        long bufferStart,
         CancellationToken cancellationToken)
     {
         var processor = _processor ?? throw new InvalidOperationException("Whisper modeli yüklenmedi.");
         var segments = new List<RecognizedSegment>();
         string? language = null;
+        var rejection = FocusVerdict.Accepted;
         await foreach (var segment in processor.ProcessAsync(samples, cancellationToken).ConfigureAwait(false))
         {
             if (!string.IsNullOrWhiteSpace(segment.Language))
@@ -414,15 +440,58 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
                 language ??= segment.Language;
             }
 
-            var text = TranscriptCleaner.Clean(segment.Text);
+            // Whisper şarkı sözlerini ♪ ile işaretler. "♪ söz ♪ konuşma" temizlikte ayrılır; "söz ♪" gibi
+            // yalnızca kapanış işareti olan segmentte ise sözler işaretin önündedir.
+            var raw = segment.Text.Trim();
+            var hasNote = raw.AsSpan().IndexOfAny("♪♫♬") >= 0;
+            var lyricsOnly = _options.FocusMainSpeaker && raw.Length > 0 && raw[^1] is '♪' or '♫' or '♬';
+            var text = lyricsOnly ? string.Empty : TranscriptCleaner.Clean(raw);
             // VAD'ın konuşma bulmadığı bölgedeki segmentler Whisper'ın uydurmasıdır.
-            if (text.Length > 0 && OverlapsSpeech(segment.Start, segment.End, speech))
+            if (text.Length == 0 || !OverlapsSpeech(segment.Start, segment.End, speech))
             {
-                segments.Add(new RecognizedSegment(text, segment.Start, segment.End));
+                rejection = hasNote && _options.FocusMainSpeaker ? FocusVerdict.Singing : rejection;
+                continue;
             }
+
+            if (_options.FocusMainSpeaker)
+            {
+                var verdict = _focus.Evaluate(
+                    bufferStart + TimeToSamples(segment.Start),
+                    bufferStart + TimeToSamples(segment.End),
+                    segment.Probability);
+                if (verdict != FocusVerdict.Accepted)
+                {
+                    rejection = verdict;
+                    continue;
+                }
+            }
+
+            segments.Add(new RecognizedSegment(text, segment.Start, segment.End));
+        }
+
+        if (rejection != FocusVerdict.Accepted)
+        {
+            ReportIgnored(rejection);
         }
 
         return (segments, language);
+    }
+
+    private void ReportIgnored(FocusVerdict verdict)
+    {
+        var now = DateTimeOffset.UtcNow;
+        if (now - _lastFocusReport < FocusReportInterval)
+        {
+            return;
+        }
+
+        _lastFocusReport = now;
+        ReportState(verdict switch
+        {
+            FocusVerdict.Singing => "Arka planda müzik/şarkı var · yalnızca konuşmacı çevriliyor",
+            FocusVerdict.Background => "Arka plandaki kısık sesler yoksayılıyor · ana konuşmacı çevriliyor",
+            _ => "Anlaşılmayan ses yoksayıldı"
+        });
     }
 
     private static bool OverlapsSpeech(TimeSpan start, TimeSpan end, IReadOnlyList<SpeechSpan> speech)
@@ -452,10 +521,20 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
                 }
 
                 var watch = Stopwatch.StartNew();
-                var translated = await TranslateWithFallbackAsync(job.Text, job.Language, job.IsFinal, cancellationToken).ConfigureAwait(false);
+                var context = job.IsFinal &&
+                    _contextText is not null &&
+                    string.Equals(_contextLanguage, job.Language, StringComparison.OrdinalIgnoreCase) &&
+                    job.Offset - _contextEnd < TranslationContextWindow
+                        ? _contextText
+                        : null;
+                var translated = await TranslateWithFallbackAsync(job.Text, job.Language, job.IsFinal, context, cancellationToken).ConfigureAwait(false);
                 watch.Stop();
                 if (job.IsFinal)
                 {
+                    _contextText = ContextTail(TranslationTextPreparer.Prepare(job.Text, job.Language));
+                    _contextLanguage = job.Language;
+                    _contextEnd = job.Offset + job.Duration;
+
                     lock (_partialGate)
                     {
                         if (_partialSegmentId == job.SegmentId)
@@ -534,7 +613,12 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
     /// kesin cümleler en iyi kalite için çevrimiçi servise gider. Servis engellerse bir süre tamamen
     /// cihazdaki modele geçilir.
     /// </summary>
-    private async Task<string> TranslateWithFallbackAsync(string text, string? language, bool isFinal, CancellationToken cancellationToken)
+    private async Task<string> TranslateWithFallbackAsync(
+        string text,
+        string? language,
+        bool isFinal,
+        string? context,
+        CancellationToken cancellationToken)
     {
         var source = string.IsNullOrWhiteSpace(language) ? LanguageCatalog.Auto : language;
         var target = _options.TargetLanguage;
@@ -542,6 +626,10 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
         {
             return text;
         }
+
+        // Konuşma dökümünü yazı diline yaklaştır (dolgu sözcükleri, yarım sözcükler, BÜYÜK HARF).
+        var prepared = TranslationTextPreparer.Prepare(text, language);
+        text = prepared.Length > 0 ? prepared : text;
 
         // Anlık parçalarda dil tahmini kararsız olabilir; yalnızca kesin cümleler paket indirmesi tetikler.
         var offlineReady = isFinal
@@ -566,7 +654,7 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
 
         if (onlineAllowed)
         {
-            var online = await TryTranslateAsync(_onlineTranslator, text, source, target, cancellationToken).ConfigureAwait(false);
+            var online = await TryTranslateAsync(_onlineTranslator, text, source, target, cancellationToken, context).ConfigureAwait(false);
             if (online.Length > 0)
             {
                 return online;
@@ -583,11 +671,14 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
         string text,
         string source,
         string target,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? context = null)
     {
         try
         {
-            var result = await translator.TranslateAsync(text, source, target, cancellationToken).ConfigureAwait(false);
+            var result = context is not null && translator is IContextualTextTranslator contextual
+                ? await contextual.TranslateAsync(text, context, source, target, cancellationToken).ConfigureAwait(false)
+                : await translator.TranslateAsync(text, source, target, cancellationToken).ConfigureAwait(false);
             if (translator == _onlineTranslator && _onlineBlockedUntil != DateTimeOffset.MinValue)
             {
                 _onlineBlockedUntil = DateTimeOffset.MinValue;
@@ -666,6 +757,7 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
             var builder = _whisperFactory!.CreateBuilder()
                 .WithLanguage(LanguageCatalog.Auto)
                 .WithNoContext()
+                .WithProbabilities()
                 .WithThreads(Math.Clamp(Environment.ProcessorCount / 2, 2, 8));
             builder = mode == TranslationMode.Accuracy
                 ? builder.WithBeamSearchSamplingStrategy(strategy => strategy.WithBeamSize(4))
@@ -701,6 +793,27 @@ public sealed partial class LocalWhisperTranslationProvider : IRealtimeTranslati
         $"{_sessionId[..Math.Min(8, _sessionId.Length)]}-{Interlocked.Increment(ref _segmentNumber).ToString(CultureInfo.InvariantCulture)}";
 
     private static TimeSpan SamplesToTime(long samples) => TimeSpan.FromSeconds(samples / (double)SampleRate);
+
+    private static long TimeToSamples(TimeSpan time) => (long)(time.TotalSeconds * SampleRate);
+
+    /// <summary>Bağlam olarak önceki cümlenin yalnızca son kısmı yeterli; uzun bağlam isteği şişirir.</summary>
+    internal static string? ContextTail(string text)
+    {
+        var trimmed = text.Trim();
+        if (trimmed.Length == 0)
+        {
+            return null;
+        }
+
+        if (trimmed.Length <= MaximumContextLength)
+        {
+            return trimmed;
+        }
+
+        var tail = trimmed[^MaximumContextLength..];
+        var space = tail.IndexOf(' ', StringComparison.Ordinal);
+        return space >= 0 && space < tail.Length - 1 ? tail[(space + 1)..] : tail;
+    }
 
     private static async Task WaitQuietlyAsync(Task task, TimeSpan timeout)
     {

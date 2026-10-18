@@ -6,15 +6,19 @@ LinguaFlow, Windows'ta çalan her türlü konuşmayı (video, toplantı, yayın,
 
 ```
 Sistem sesi (WASAPI loopback)
-   → 16 kHz mono
+   → 16 kHz mono + 90 Hz altını kesen süzgeç (bas/davul)
    → Silero VAD: konuşma var mı, konuşmacı sustu mu? (her 100 ms)
    → Whisper Large v3 Turbo, GPU üzerinde (Vulkan): kayan pencere, ~0,3 sn'de bir yeniden çözümleme
+   → Ana konuşmacı filtresi: şarkı, fon müziği ve kısık arka plan sesleri ayıklanır
    → Cümle kesinleştirme: duraksama + noktalama + ardışık iki tahminde aynı kalma
-   → Çeviri: Google (ücretsiz uç) → sınırlanırsa / internet yoksa cihazdaki Mozilla modelleri
+   → Çeviri hazırlığı: dolgu sözcükleri (um, ııı), yarım sözcükler, BÜYÜK HARF düzeltilir
+   → Çeviri: Google (ücretsiz uç, önceki cümle bağlamıyla) → sınırlanırsa / internet yoksa cihazdaki Mozilla modelleri
    → Canlı döküm + altyazı şeridi
 ```
 
 - **Anlık (partial) altyazı:** Konuşma sürerken cümle, siz dinlerken yazılır ve çevrilir; Whisper cümleyi düzelttikçe çeviri de güncellenir.
+- **Yalnızca ana konuşmacı:** Arka planda çalan şarkının sözleri çevrilmez. Perdesi uzun süre aynı notada kalan ses şarkı sayılır (konuşmada perde sürekli kayar); Whisper'ın kendisinin de emin olmadığı metinler ve ana konuşmacıdan ~15 dB daha kısık sesler de atlanır. Konuşma müziğin üzerindeyse çevrilmeye devam eder. Ayarlardan *Duyulan her şey* seçilerek kapatılabilir.
+- **Bağlamlı çeviri:** Kesin cümleler bir önceki cümleyle birlikte çevrilir; zamir, hitap ve terimler cümleler arasında tutarlı kalır.
 - **Cümle sonunu anlama:** Konuşmacı kısa bir duraksama yapıp cümle noktalama ile bitiyorsa (~250 ms) ya da belirgin şekilde durursa (~600 ms) cümle kesinleşir. Kesintisiz konuşmada, tamamlanmış ve iki ardışık tahminde değişmeyen cümleler beklemeden kesinleşir.
 - **Ölçülen gecikme (RTX 3070):** Whisper çözümlemesi 220–400 ms, çeviri 60–150 ms (çevrimiçi) / 3–15 ms (cihazda). Kesin çeviri, cümle bittikten ortalama ~0,5 sn sonra ekranda.
 - **Tüm diller:** Konuşma dili otomatik algılanır (Whisper'ın 99 dili). Çevrimiçi çeviri tüm dil çiftlerini, cihazdaki çeviri İngilizce üzerinden 59 dili destekler.
@@ -43,6 +47,7 @@ Altyazı şeridini sürükleyerek taşıyabilir, kenarlarından genişletebilirs
 | Konuşma tanıma modeli | **Large v3 Turbo** — en doğru, GPU önerilir · **Small** — hafif |
 | Çeviri | **Çevrimiçi + cihaz yedeği** — en iyi kalite · **Yalnızca cihazda** — internetsiz |
 | Gecikme | **Anlık** — en düşük gecikme · **Dengeli** — beam search, biraz daha doğru |
+| Çevrilecek ses | **Yalnızca ana konuşmacı** — arka plandaki şarkı/müzik çevrilmez · **Duyulan her şey** |
 
 Konuşma dilini biliyorsanız seçmeniz, kısa cümlelerde dil karışmasını önler ve tanımayı hızlandırır.
 
@@ -77,6 +82,8 @@ Scriptler .NET CLI ve NuGet önbelleklerini D: üzerinde tutar.
 
 - Cümle kesinleştirme politikası: sessizlik, duraksama + noktalama, kararlı önek, zorunlu kesinleştirme
 - Whisper halüsinasyon/etiket temizliği ve tekrar döngüsü bastırma
+- Ana konuşmacı filtresi: perde tahmini, sentetik şarkı ↔ konuşma ayrımı, müzik üstünde konuşma, ses seviyesi kapısı, bas süzgeci
+- Çeviri hazırlığı (dile özgü dolgu sözcükleri, yarım sözcükler, BÜYÜK HARF) ve bağlamlı çeviri satır ayrıştırması/geri dönüşü
 - Çeviri yanıtı ayrıştırma, İngilizce pivot rotası, model kayıt defterinden sürüm seçimi, dil kodu eşleme
 - Partial → final transcript yaşam döngüsü, sonraki cümlenin partial'ının korunması, partial geri çekme
 - Float stereo 48 kHz → PCM16 mono 16 kHz dönüşümü ve frame hizalama
@@ -86,6 +93,8 @@ Scriptler .NET CLI ve NuGet önbelleklerini D: üzerinde tutar.
 
 - Aynı anda birden fazla kişinin üst üste konuştuğu seslerde tanıma doğruluğu düşer; konuşmacı ayrımı yoktur.
 - Çok gürültülü müzik altındaki konuşmada VAD bazı cümleleri kaçırabilir.
+- Şarkı algılama sezgiseldir (ayrı bir model değil): rap gibi konuşmaya yakın vokaller çevrilebilir, ünlüleri çok uzatan konuşmacılar ara sıra atlanabilir. Böyle durumlarda *Çevrilecek ses → Duyulan her şey* seçin.
+- Bağlam için önceki cümle de çeviri servisine gönderilir (yalnızca çevrimiçi modda, son ~280 karakter).
 - Cihazdaki çeviri İngilizce üzerinden pivot yaptığı için İngilizce dışı → İngilizce dışı çiftlerde çevrimiçi çeviriden bir miktar daha düşük kalitededir.
 - Azure modunda "Otomatik algıla" İngilizce (en-US) olarak kullanılır.
 

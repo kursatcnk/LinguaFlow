@@ -52,6 +52,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private LanguageOption? _selectedTargetLanguage;
     [ObservableProperty] private ChoiceOption<TranslationMode>? _selectedMode;
     [ObservableProperty] private ChoiceOption<string>? _selectedTranslationEngine;
+    [ObservableProperty] private ChoiceOption<bool>? _selectedFocusOption;
     [ObservableProperty] private WhisperModelInfo? _selectedWhisperModel;
     [ObservableProperty] private string _azureKey = string.Empty;
     [ObservableProperty] private string _azureRegion = string.Empty;
@@ -130,6 +131,12 @@ public sealed partial class MainViewModel : ObservableObject
         new(TranslationEngines.Offline, "Yalnızca cihazda")
     ];
 
+    public IReadOnlyList<ChoiceOption<bool>> FocusOptions { get; } =
+    [
+        new(true, "Yalnızca ana konuşmacı"),
+        new(false, "Duyulan her şey (şarkılar dahil)")
+    ];
+
     public IReadOnlyList<ProviderOption> Providers { get; } =
     [
         new("local", "Yerel (Whisper)"),
@@ -168,6 +175,7 @@ public sealed partial class MainViewModel : ObservableObject
         SelectedSourceLanguage = SourceLanguages.FirstOrDefault(language => language.Code == _settings.SourceLanguage) ?? SourceLanguages[0];
         SelectedTargetLanguage = TargetLanguages.FirstOrDefault(language => language.Code == _settings.TargetLanguage) ?? TargetLanguages[0];
         SelectedMode = Modes.FirstOrDefault(mode => mode.Value == _settings.TranslationMode) ?? Modes[0];
+        SelectedFocusOption = FocusOptions.First(option => option.Value == _settings.FocusMainSpeaker);
         SelectedTranslationEngine = TranslationEngineOptions.FirstOrDefault(engine => engine.Value == _settings.TranslationEngine)
             ?? TranslationEngineOptions[0];
         AzureRegion = string.IsNullOrWhiteSpace(_settings.AzureRegion)
@@ -289,7 +297,8 @@ public sealed partial class MainViewModel : ObservableObject
                 SelectedProvider.Id,
                 AzureKey,
                 AzureRegion,
-                SelectedTranslationEngine?.Value ?? TranslationEngines.Online), CancellationToken.None).ConfigureAwait(true);
+                SelectedTranslationEngine?.Value ?? TranslationEngines.Online,
+                SelectedFocusOption?.Value ?? true), CancellationToken.None).ConfigureAwait(true);
             IsRunning = true;
             await SaveSettingsAsync().ConfigureAwait(true);
             if (IsLocalProvider)
@@ -518,6 +527,7 @@ public sealed partial class MainViewModel : ObservableObject
         _settings.SourceLanguage = SelectedSourceLanguage?.Code ?? LanguageCatalog.Auto;
         _settings.TargetLanguage = SelectedTargetLanguage?.Code ?? "tr";
         _settings.TranslationEngine = SelectedTranslationEngine?.Value ?? TranslationEngines.Online;
+        _settings.FocusMainSpeaker = SelectedFocusOption?.Value ?? true;
         _settings.WhisperModelId = SelectedWhisperModel?.Id ?? "turbo";
         _settings.LocalModelDirectory = ModelDirectory;
         _settings.TranslationMode = SelectedMode?.Value ?? TranslationMode.Fast;

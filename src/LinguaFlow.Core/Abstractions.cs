@@ -70,6 +70,20 @@ public interface ITextTranslator
     Task<string> TranslateAsync(string text, string sourceLanguage, string targetLanguage, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Önceki cümleyi bağlam olarak kullanıp yalnızca yeni cümlenin çevirisini döndürebilen çevirmenler.
+/// Bağlam; zamir, hitap, cinsiyet ve terim seçimini cümleler arasında tutarlı kılar.
+/// </summary>
+public interface IContextualTextTranslator : ITextTranslator
+{
+    Task<string> TranslateAsync(
+        string text,
+        string? context,
+        string sourceLanguage,
+        string targetLanguage,
+        CancellationToken cancellationToken);
+}
+
 /// <summary>Ağır modelleri oturum başlamadan önce belleğe/GPU'ya yükleyebilen sağlayıcılar.</summary>
 public interface IWarmupCapable
 {

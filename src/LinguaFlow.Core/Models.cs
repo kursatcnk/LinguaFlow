@@ -85,7 +85,8 @@ public sealed record TranslationSessionOptions(
     string ProviderId,
     string? SubscriptionKey,
     string? Region,
-    string TranslationEngine = TranslationEngines.Online);
+    string TranslationEngine = TranslationEngines.Online,
+    bool FocusMainSpeaker = true);
 
 public static class TranslationEngines
 {
@@ -120,6 +121,10 @@ public sealed class ApplicationSettings
     public TranslationMode TranslationMode { get; set; } = TranslationMode.Fast;
     public bool ShowOriginalText { get; set; } = true;
     public bool ShowPartialResults { get; set; } = true;
+
+    /// <summary>Arka plandaki şarkı, müzik ve uzak konuşmaları çevirme; yalnızca ana konuşmacıyı çevir.</summary>
+    public bool FocusMainSpeaker { get; set; } = true;
+
     public bool OverlayVisible { get; set; } = true;
     public double OverlayOpacity { get; set; } = 0.9;
     public double OverlayFontSize { get; set; } = 30;
