@@ -76,7 +76,7 @@ Cihazdaki çeviri için gereken dil paketleri (çift başına ~20–40 MB) ilk i
 .\publish.ps1   # self-contained win-x64 yayını
 ```
 
-Scriptler .NET CLI ve NuGet önbelleklerini D: üzerinde tutar.
+Scriptler .NET CLI ve NuGet önbelleklerini D: üzerinde tutar. `build.ps1` şu an 77 test çalıştırır (76 birim, 1 entegrasyon).
 
 ## Test kapsamı
 
